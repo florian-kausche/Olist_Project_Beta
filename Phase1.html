@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 1 — Data Governance &amp; Business Problem Definition | Olist Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12182B;
+    --ink-soft:#4C5268;
+    --ink-faint:#8A8FA0;
+    --paper:#FBFAF6;
+    --panel:#FFFFFF;
+    --line:#E5E1D6;
+    --line-strong:#D3CEBE;
+    --gold:#A9782F;
+    --gold-soft:#F1E6CF;
+    --teal:#2E655F;
+    --teal-soft:#E4EEEC;
+    --rose:#9C4A3D;
+    --rose-soft:#F3E4DF;
+    --radius:2px;
+    --maxw:1180px;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  ::selection{background:var(--gold-soft); color:var(--ink);}
+
+  h1,h2,h3,h4{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    margin:0;
+    color:var(--ink);
+  }
+
+  a{color:inherit;}
+
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Layout shell ---------- */
+  .shell{
+    max-width:var(--maxw);
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:240px 1fr;
+    gap:64px;
+  }
+
+  @media (max-width:920px){
+    .shell{grid-template-columns:1fr;}
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+  }
+  .topbar-inner{
+    max-width:var(--maxw);
+    margin:0 auto;
+    padding:20px 32px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  .brand{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:1.05rem;
+    letter-spacing:-0.01em;
+  }
+  .brand span{color:var(--gold);}
+  .topbar-meta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    padding:96px 32px 72px;
+    border-bottom:1px solid var(--line);
+  }
+  .hero-inner{
+    max-width:var(--maxw);
+    margin:0 auto;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.75rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:22px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:28px;
+    height:1px;
+    background:var(--gold);
+    display:inline-block;
+  }
+  .hero h1{
+    font-size:clamp(2.4rem, 5vw, 4rem);
+    line-height:1.05;
+    max-width:16ch;
+  }
+  .hero-sub{
+    margin-top:26px;
+    max-width:62ch;
+    font-size:1.1rem;
+    color:var(--ink-soft);
+  }
+
+  .hero-stats{
+    margin-top:56px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    border-top:1px solid var(--line-strong);
+  }
+  @media (max-width:760px){
+    .hero-stats{grid-template-columns:repeat(2,1fr);}
+  }
+  .stat{
+    padding:22px 22px 0 0;
+    border-right:1px solid var(--line);
+  }
+  .stat:last-child{border-right:none;}
+  .stat-num{
+    font-family:'Fraunces',serif;
+    font-size:2.1rem;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .stat-label{
+    margin-top:6px;
+    font-size:0.8rem;
+    color:var(--ink-faint);
+    letter-spacing:0.02em;
+  }
+
+  /* ---------- Sidebar nav ---------- */
+  .side{
+    padding:56px 0 80px;
+  }
+  .side-inner{
+    position:sticky;
+    top:40px;
+  }
+  .side-title{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.7rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:18px;
+    padding-left:32px;
+  }
+  .toc{list-style:none;margin:0;padding:0;}
+  .toc li{border-left:1px solid var(--line);}
+  .toc a{
+    display:block;
+    padding:10px 0 10px 30px;
+    margin-left:-1px;
+    border-left:2px solid transparent;
+    text-decoration:none;
+    font-size:0.92rem;
+    color:var(--ink-soft);
+    transition:color .15s ease, border-color .15s ease;
+  }
+  .toc a:hover{color:var(--ink);}
+  .toc a.active{
+    color:var(--ink);
+    border-left:2px solid var(--gold);
+    font-weight:600;
+  }
+  .toc .num{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--ink-faint);
+    margin-right:8px;
+    font-size:0.78rem;
+  }
+  .toc a.active .num{color:var(--gold);}
+
+  /* ---------- Main content ---------- */
+  .main{padding:56px 32px 120px 0;}
+  @media (max-width:920px){.main{padding:48px 32px 100px;}}
+
+  section{
+    margin-bottom:96px;
+    scroll-margin-top:36px;
+  }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:16px;
+    margin-bottom:28px;
+  }
+  .section-tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.78rem;
+    color:var(--gold);
+    letter-spacing:0.06em;
+  }
+  section h2{
+    font-size:1.9rem;
+  }
+  section > p{
+    max-width:70ch;
+    color:var(--ink-soft);
+    font-size:1.02rem;
+  }
+  .lede{
+    font-size:1.14rem;
+    color:var(--ink);
+    max-width:68ch;
+  }
+
+  /* ---------- Ledger table ---------- */
+  .ledger-wrap{
+    margin-top:40px;
+    border:1px solid var(--line-strong);
+    background:var(--panel);
+    overflow-x:auto;
+  }
+  table.ledger{
+    width:100%;
+    border-collapse:collapse;
+    min-width:760px;
+  }
+  table.ledger thead th{
+    text-align:left;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--ink-faint);
+    font-weight:500;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line-strong);
+    background:#F5F3EC;
+  }
+  table.ledger td{
+    padding:16px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:0.9rem;
+    vertical-align:top;
+  }
+  table.ledger tbody tr:last-child td{border-bottom:none;}
+  table.ledger tbody tr:hover{background:#FAF8F2;}
+  .tbl-name{
+    font-weight:600;
+    font-family:'Fraunces',serif;
+    font-size:1rem;
+  }
+  .tbl-file{
+    display:block;
+    margin-top:2px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    color:var(--ink-faint);
+  }
+  .num-cell{font-family:'IBM Plex Mono',monospace; font-size:0.86rem;}
+  .missing-cols{
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    max-width:26ch;
+  }
+  .missing-cols .none{color:var(--ink-faint); font-style:italic;}
+
+  .meter{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:150px;
+  }
+  .meter-track{
+    flex:1;
+    height:6px;
+    background:var(--line);
+    position:relative;
+    overflow:hidden;
+  }
+  .meter-fill{
+    position:absolute;
+    left:0; top:0; bottom:0;
+    background:var(--teal);
+  }
+  .meter-fill.warn{background:var(--gold);}
+  .meter-pct{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    width:44px;
+    text-align:right;
+  }
+  .ledger-foot{
+    display:flex;
+    justify-content:space-between;
+    padding:12px 18px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    color:var(--ink-faint);
+    border-top:1px solid var(--line-strong);
+    background:#F5F3EC;
+  }
+
+  /* ---------- Problem statement ---------- */
+  .problem-block{
+    margin-top:36px;
+    border-left:2px solid var(--gold);
+    padding:4px 0 4px 28px;
+  }
+  .problem-block p{margin:0 0 16px; max-width:66ch; color:var(--ink-soft);}
+  .problem-block p:last-child{margin-bottom:0;}
+  .problem-block strong{color:var(--ink); font-weight:600;}
+
+  /* ---------- Dataset cards ---------- */
+  .card-grid{
+    margin-top:40px;
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:1px;
+    background:var(--line-strong);
+    border:1px solid var(--line-strong);
+  }
+  @media (max-width:700px){.card-grid{grid-template-columns:1fr;}}
+  .card{
+    background:var(--panel);
+    padding:28px 26px;
+  }
+  .card-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:14px;
+  }
+  .card h3{font-size:1.12rem;}
+  .card-index{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    color:var(--ink-faint);
+  }
+  .field-list{
+    margin:16px 0 0;
+    padding:0;
+    list-style:none;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .field-list li{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.74rem;
+    color:var(--ink-soft);
+    background:#F3F1E9;
+    border:1px solid var(--line);
+    padding:4px 9px;
+  }
+  .card-desc{
+    margin-top:14px;
+    font-size:0.9rem;
+    color:var(--ink-soft);
+  }
+  .card-types{
+    margin-top:14px;
+    font-size:0.78rem;
+    color:var(--ink-faint);
+  }
+  .card-types b{color:var(--ink-soft); font-weight:600;}
+
+  /* ---------- Callouts ---------- */
+  .callout{
+    margin-top:40px;
+    padding:30px 32px;
+    background:var(--rose-soft);
+    border:1px solid #E2C6BC;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:24px;
+  }
+  .callout-mark{
+    font-family:'Fraunces',serif;
+    font-size:2rem;
+    font-weight:600;
+    color:var(--rose);
+    line-height:1;
+  }
+  .callout h4{
+    font-size:1.05rem;
+    color:var(--rose);
+    margin-bottom:10px;
+  }
+  .callout ul{
+    margin:0;
+    padding-left:18px;
+    color:var(--ink-soft);
+    font-size:0.92rem;
+  }
+  .callout li{margin-bottom:6px;}
+  .callout li:last-child{margin-bottom:0;}
+
+  /* ---------- Governance checklist ---------- */
+  .checklist{
+    margin-top:40px;
+    display:grid;
+    gap:1px;
+    background:var(--line-strong);
+    border:1px solid var(--line-strong);
+  }
+  .check-row{
+    background:var(--panel);
+    padding:18px 22px;
+    display:grid;
+    grid-template-columns:26px 1fr;
+    gap:16px;
+    align-items:start;
+  }
+  .check-box{
+    width:16px;height:16px;
+    border:1.5px solid var(--teal);
+    margin-top:3px;
+    position:relative;
+  }
+  .check-box::after{
+    content:"";
+    position:absolute;
+    left:2px; top:-1px;
+    width:4px; height:8px;
+    border:solid var(--teal);
+    border-width:0 2px 2px 0;
+    transform:rotate(45deg);
+  }
+  .check-row h5{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:0.96rem;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .check-row p{
+    margin:0;
+    font-size:0.88rem;
+    color:var(--ink-soft);
+    max-width:60ch;
+  }
+
+  /* ---------- Team roster ---------- */
+  .roster{
+    margin-top:40px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:1px;
+    background:var(--line-strong);
+    border:1px solid var(--line-strong);
+  }
+  @media (max-width:760px){
+    .roster{grid-template-columns:1fr;}
+  }
+  .member{
+    background:var(--panel);
+    padding:32px 26px;
+    position:relative;
+  }
+  .member-index{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    color:var(--ink-faint);
+    letter-spacing:0.06em;
+  }
+  .member-badge{
+    width:52px;
+    height:52px;
+    border:1.5px solid var(--gold);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:18px 0 20px;
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:1.05rem;
+    color:var(--gold);
+  }
+  .member h4{
+    font-size:1.05rem;
+    line-height:1.3;
+  }
+  .member-role{
+    margin-top:8px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+
+  /* ---------- Footer ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:40px 32px;
+  }
+  .footer-inner{
+    max-width:var(--maxw);
+    margin:0 auto;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    color:var(--ink-faint);
+    letter-spacing:0.02em;
+  }
+
+  /* ---------- Mobile nav toggle ---------- */
+  .mnav-toggle{display:none;}
+  @media (max-width:920px){
+    .side{padding:0; border-bottom:1px solid var(--line);}
+    .side-inner{position:static; padding:20px 32px;}
+    .toc{display:flex; flex-wrap:wrap; gap:4px 18px;}
+    .toc li{border-left:none;}
+    .toc a{padding:6px 0; border-left:none; border-bottom:2px solid transparent;}
+    .toc a.active{border-left:none; border-bottom:2px solid var(--gold);}
+    .side-title{padding-left:0;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">Olist <span>Analytics</span> — Phase 1</div>
+    <div class="topbar-meta">Data Governance Report</div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">CSIT608 &middot; Project Phase 1</div>
+    <h1>Data Governance &amp; Business Problem Definition</h1>
+    <p class="hero-sub">
+      An inventory and governance assessment of the Brazilian Olist e-commerce dataset —
+      covering orders, payments, reviews, products and customer geography — as the
+      foundation for the analytics work that follows.
+    </p>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num mono">8</div>
+        <div class="stat-label">Source datasets inventoried</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num mono">550,759</div>
+        <div class="stat-label">Total records across all tables</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num mono">153,259</div>
+        <div class="stat-label">Missing values identified</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num mono">0</div>
+        <div class="stat-label">Duplicate rows found</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="side">
+    <div class="side-inner">
+      <div class="side-title">Contents</div>
+      <ul class="toc" id="toc">
+        <li><a href="#introduction"><span class="num">01</span>Introduction</a></li>
+        <li><a href="#inventory"><span class="num">02</span>Dataset Inventory</a></li>
+        <li><a href="#problem"><span class="num">03</span>Business Problem</a></li>
+        <li><a href="#data"><span class="num">04</span>Data Inventory</a></li>
+        <li><a href="#privacy"><span class="num">05</span>Privacy &amp; Ethics</a></li>
+        <li><a href="#governance"><span class="num">06</span>Data Governance</a></li>
+        <li><a href="#team"><span class="num">07</span>Group Members</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <section id="introduction">
+      <div class="section-head">
+        <span class="section-tag mono">01</span>
+        <h2>Introduction</h2>
+      </div>
+      <p class="lede">
+        Data analytics is the systematic process of collecting, organizing, analyzing, and
+        interpreting data to solve problems and generate insights that support decision-making.
+      </p>
+      <p>
+        This project uses the Brazilian Olist e-commerce dataset to analyze customer, order,
+        payment, and geographical information. The objective is to understand the available
+        data, identify governance requirements, and define the business problem that analytics
+        will address. Proper data governance ensures that the data is accurate, secure, ethical,
+        and suitable for analysis.
+      </p>
+    </section>
+
+    <section id="inventory">
+      <div class="section-head">
+        <span class="section-tag mono">02</span>
+        <h2>Dataset Inventory</h2>
+      </div>
+      <p>
+        Each source file was profiled for size, structure, and quality before any cleaning was
+        applied. Completeness below reflects the share of non-missing cells in the raw file.
+      </p>
+
+      <div class="ledger-wrap">
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>Table</th>
+              <th>Rows</th>
+              <th>Cols</th>
+              <th>Missing values</th>
+              <th>Columns affected</th>
+              <th>Completeness</th>
+              <th>Duplicates</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tbl-name">orders</span><span class="tbl-file">olist_orders_dataset.csv</span></td>
+              <td class="num-cell">99,441</td>
+              <td class="num-cell">8</td>
+              <td class="num-cell">4,908</td>
+              <td class="missing-cols">order_approved_at, order_delivered_carrier_date, order_delivered_customer_date</td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:99.38%"></div></div>
+                  <span class="meter-pct">99.4%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">order_items</span><span class="tbl-file">olist_order_items_dataset.csv</span></td>
+              <td class="num-cell">112,650</td>
+              <td class="num-cell">7</td>
+              <td class="num-cell">0</td>
+              <td class="missing-cols"><span class="none">— none</span></td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:100%"></div></div>
+                  <span class="meter-pct">100%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">payments</span><span class="tbl-file">olist_order_payments_dataset.csv</span></td>
+              <td class="num-cell">103,886</td>
+              <td class="num-cell">5</td>
+              <td class="num-cell">0</td>
+              <td class="missing-cols"><span class="none">— none</span></td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:100%"></div></div>
+                  <span class="meter-pct">100%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">reviews</span><span class="tbl-file">olist_order_reviews_dataset.csv</span></td>
+              <td class="num-cell">99,224</td>
+              <td class="num-cell">7</td>
+              <td class="num-cell">145,903</td>
+              <td class="missing-cols">review_comment_title, review_comment_message</td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill warn" style="width:79%"></div></div>
+                  <span class="meter-pct">79.0%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">customers</span><span class="tbl-file">olist_customers_dataset.csv</span></td>
+              <td class="num-cell">99,441</td>
+              <td class="num-cell">5</td>
+              <td class="num-cell">0</td>
+              <td class="missing-cols"><span class="none">— none</span></td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:100%"></div></div>
+                  <span class="meter-pct">100%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">sellers</span><span class="tbl-file">olist_sellers_dataset.csv</span></td>
+              <td class="num-cell">3,095</td>
+              <td class="num-cell">4</td>
+              <td class="num-cell">0</td>
+              <td class="missing-cols"><span class="none">— none</span></td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:100%"></div></div>
+                  <span class="meter-pct">100%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">products</span><span class="tbl-file">olist_products_dataset.csv</span></td>
+              <td class="num-cell">32,951</td>
+              <td class="num-cell">9</td>
+              <td class="num-cell">2,448</td>
+              <td class="missing-cols">product_category_name, product_name_lenght, product_description_lenght, product_photos_qty, product_weight_g, product_length_cm, product_height_cm, product_width_cm</td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:99.17%"></div></div>
+                  <span class="meter-pct">99.2%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+            <tr>
+              <td><span class="tbl-name">categories</span><span class="tbl-file">product_category_name_translation.csv</span></td>
+              <td class="num-cell">71</td>
+              <td class="num-cell">2</td>
+              <td class="num-cell">0</td>
+              <td class="missing-cols"><span class="none">— none</span></td>
+              <td>
+                <div class="meter">
+                  <div class="meter-track"><div class="meter-fill" style="width:100%"></div></div>
+                  <span class="meter-pct">100%</span>
+                </div>
+              </td>
+              <td class="num-cell">0</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="ledger-foot">
+          <span>8 tables profiled</span>
+          <span>550,759 total rows &middot; 153,259 missing values &middot; 0 duplicate rows</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="problem">
+      <div class="section-head">
+        <span class="section-tag mono">03</span>
+        <h2>Business Problem Statement</h2>
+      </div>
+      <p>
+        The Olist e-commerce platform generates high volumes of customer, order, payment, and
+        location data. Without proper analysis, it is difficult to identify customer purchasing
+        patterns, understand payment preferences, evaluate shipping costs, and improve
+        operational performance.
+      </p>
+      <div class="problem-block">
+        <p>
+          <strong>Objective —</strong> use data analytics to generate insights that support
+          better business decisions, improve customer satisfaction, optimize logistics, and
+          enhance overall business performance.
+        </p>
+      </div>
+    </section>
+
+    <section id="data">
+      <div class="section-head">
+        <span class="section-tag mono">04</span>
+        <h2>Data Inventory</h2>
+      </div>
+      <p>
+        Four datasets carry the core of the analysis: who the customer is, where they are,
+        what they bought, and how they paid for it.
+      </p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-head">
+            <h3>Customer Dataset</h3>
+            <span class="card-index mono">01</span>
+          </div>
+          <p class="card-desc">
+            Identifies each customer and their general location for regional and delivery analysis.
+          </p>
+          <ul class="field-list">
+            <li>customer_id</li>
+            <li>customer_unique_id</li>
+            <li>zip_code_prefix</li>
+            <li>city</li>
+            <li>state</li>
+          </ul>
+          <div class="card-types"><b>Types —</b> Text (IDs) &middot; Numeric (ZIP prefix) &middot; Categorical (city, state)</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Geolocation Dataset</h3>
+            <span class="card-index mono">02</span>
+          </div>
+          <p class="card-desc">
+            Maps ZIP code prefixes to geographic coordinates, enabling spatial and regional analysis.
+          </p>
+          <ul class="field-list">
+            <li>zip_code_prefix</li>
+            <li>latitude</li>
+            <li>longitude</li>
+            <li>city</li>
+            <li>state</li>
+          </ul>
+          <div class="card-types"><b>Types —</b> Numeric (coordinates) &middot; Categorical (city, state)</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Order Items Dataset</h3>
+            <span class="card-index mono">03</span>
+          </div>
+          <p class="card-desc">
+            Transactional detail for every product purchased, linking orders to products and sellers.
+          </p>
+          <ul class="field-list">
+            <li>order_id</li>
+            <li>product_id</li>
+            <li>seller_id</li>
+            <li>shipping_deadline</li>
+            <li>price</li>
+          </ul>
+          <div class="card-types"><b>Types —</b> Text (IDs) &middot; Date (shipping deadline) &middot; Numeric (price)</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Order Payments Dataset</h3>
+            <span class="card-index mono">04</span>
+          </div>
+          <p class="card-desc">
+            Records how each order was paid for, including method and installment structure.
+          </p>
+          <ul class="field-list">
+            <li>order_id</li>
+            <li>payment_type</li>
+            <li>installments</li>
+            <li>payment_value</li>
+          </ul>
+          <div class="card-types"><b>Types —</b> Text (ID) &middot; Categorical (payment type) &middot; Numeric (installments, value)</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="section-head">
+        <span class="section-tag mono">05</span>
+        <h2>Privacy &amp; Ethical Issues</h2>
+      </div>
+      <p>
+        Although the datasets do not contain customer names or contact details, they include
+        location information and unique customer identifiers. These elements should be handled
+        responsibly to protect privacy.
+      </p>
+
+      <div class="callout">
+        <div class="callout-mark">!</div>
+        <div>
+          <h4>Key ethical considerations</h4>
+          <ul>
+            <li>Using customer data only for legitimate business purposes</li>
+            <li>Restricting access to sensitive datasets</li>
+            <li>Reporting only aggregated results instead of individual customer information</li>
+            <li>Preventing the identification of individual customers</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="governance">
+      <div class="section-head">
+        <span class="section-tag mono">06</span>
+        <h2>Data Governance</h2>
+      </div>
+      <p>
+        Effective data governance ensures that data remains secure, accurate, and accessible
+        throughout the analytics lifecycle.
+      </p>
+
+      <div class="checklist">
+        <div class="check-row">
+          <div class="check-box"></div>
+          <div>
+            <h5>Role-based access control</h5>
+            <p>Limit dataset access to individuals whose responsibilities require it.</p>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-box"></div>
+          <div>
+            <h5>Encryption in storage and transit</h5>
+            <p>Protect sensitive data at rest and while it moves between systems.</p>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-box"></div>
+          <div>
+            <h5>Audit logging</h5>
+            <p>Keep a record of data access and modifications for accountability.</p>
+          </div>
+        </div>
+        <div class="check-row">
+          <div class="check-box"></div>
+          <div>
+            <h5>Defined data ownership</h5>
+            <p>Assign clear ownership and responsibility for each dataset.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="team">
+      <div class="section-head">
+        <span class="section-tag mono">07</span>
+        <h2>Group Members</h2>
+      </div>
+      <p>
+        This phase of the project was prepared by the following contributors.
+      </p>
+
+      <div class="roster">
+        <div class="member">
+          <div class="member-index mono">01</div>
+          <div class="member-badge">EP</div>
+          <h4>Emmanuella Marfo Prempeh</h4>
+          <div class="member-role">Contributor</div>
+        </div>
+        <div class="member">
+          <div class="member-index mono">02</div>
+          <div class="member-badge">AA</div>
+          <h4>Ahmed Abdul-Hakim</h4>
+          <div class="member-role">Contributor</div>
+        </div>
+        <div class="member">
+          <div class="member-index mono">03</div>
+          <div class="member-badge">FK</div>
+          <h4>Florian Adu Kausche</h4>
+          <div class="member-role">Contributor</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <span>Olist Analytics Project &middot; Phase 1</span>
+    <span>Data Governance &amp; Business Problem Definition</span>
+  </div>
+</footer>
+
+<script>
+  // Highlight the active section in the table of contents on scroll.
+  const links = Array.from(document.querySelectorAll('#toc a'));
+  const sections = links.map(l => document.querySelector(l.getAttribute('href')));
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = '#' + entry.target.id;
+      const link = links.find(l => l.getAttribute('href') === id);
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(s => { if (s) observer.observe(s); });
+</script>
+
+</body>
+</html>

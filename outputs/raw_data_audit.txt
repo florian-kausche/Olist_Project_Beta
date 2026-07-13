@@ -1,0 +1,88 @@
+RAW DATA AUDIT — before any cleaning
+=======================================================
+
+FILE: olist_customers_dataset.csv
+  Rows x Cols: 99,441 x 5
+  Missing data: none
+  Exact duplicate rows: 0
+  Duplicate 'customer_id' values: 0
+  Outliers: none detected
+
+FILE: olist_geolocation_dataset.csv
+  Rows x Cols: 1,000,163 x 5
+  Missing data: none
+  Exact duplicate rows: 261831
+  Outliers (IQR method):
+    - geolocation_lat: 168240 (16.82%), bounds=(-29.04, -14.54)
+    - geolocation_lng: 42348 (4.23%), bounds=(-55.78, -36.56)
+
+FILE: olist_order_payments_dataset.csv
+  Rows x Cols: 103,886 x 5
+  Missing data: none
+  Exact duplicate rows: 0
+  Outliers (IQR method):
+    - payment_installments: 6313 (6.08%), bounds=(-3.5, 8.5)
+    - payment_value: 7981 (7.68%), bounds=(-115.78, 344.41)
+
+FILE: olist_order_items_dataset.csv
+  Rows x Cols: 112,650 x 7
+  Missing data: none
+  Exact duplicate rows: 0
+  Outliers (IQR method):
+    - price: 8427 (7.48%), bounds=(-102.6, 277.4)
+    - freight_value: 12134 (10.77%), bounds=(0.98, 33.25)
+
+FILE: olist_orders_dataset.csv
+  Rows x Cols: 99,441 x 8
+  Missing data by column:
+    - order_approved_at: 160 (0.16%)
+    - order_delivered_carrier_date: 1783 (1.79%)
+    - order_delivered_customer_date: 2965 (2.98%)
+  Exact duplicate rows: 0
+  Duplicate 'order_id' values: 0
+  Outliers: none detected
+
+FILE: olist_products_dataset.csv
+  Rows x Cols: 32,951 x 9
+  Missing data by column:
+    - product_category_name: 610 (1.85%)
+    - product_name_lenght: 610 (1.85%)
+    - product_description_lenght: 610 (1.85%)
+    - product_photos_qty: 610 (1.85%)
+    - product_weight_g: 2 (0.01%)
+    - product_length_cm: 2 (0.01%)
+    - product_height_cm: 2 (0.01%)
+    - product_width_cm: 2 (0.01%)
+  Exact duplicate rows: 0
+  Duplicate 'product_id' values: 0
+  Outliers (IQR method):
+    - product_name_lenght: 290 (0.88%), bounds=(19.5, 79.5)
+    - product_description_lenght: 2078 (6.31%), bounds=(-610.5, 1921.5)
+    - product_photos_qty: 849 (2.58%), bounds=(-2.0, 6.0)
+    - product_weight_g: 4551 (13.81%), bounds=(-2100.0, 4300.0)
+    - product_length_cm: 1380 (4.19%), bounds=(-12.0, 68.0)
+    - product_height_cm: 1892 (5.74%), bounds=(-11.5, 40.5)
+    - product_width_cm: 912 (2.77%), bounds=(-7.5, 52.5)
+
+FILE: olist_order_reviews_dataset.csv
+  Rows x Cols: 99,224 x 7
+  Missing data by column:
+    - review_comment_title: 87656 (88.34%)
+    - review_comment_message: 58247 (58.7%)
+  Exact duplicate rows: 0
+  Duplicate 'review_id' values: 814
+  Outliers (IQR method):
+    - review_score: 14575 (14.69%), bounds=(2.5, 6.5)
+
+FILE: product_category_name_translation.csv
+  Rows x Cols: 71 x 2
+  Missing data: none
+  Exact duplicate rows: 0
+  Outliers: none detected
+
+FILE: olist_sellers_dataset.csv
+  Rows x Cols: 3,095 x 4
+  Missing data: none
+  Exact duplicate rows: 0
+  Duplicate 'seller_id' values: 0
+  Outliers: none detected

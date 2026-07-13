@@ -1,0 +1,17 @@
+PHASE 3 — WHAT THE DATA SUGGESTS BEFORE MODELLING
+=======================================================
+
+1. Raw 'olist_geolocation_dataset.csv' contained 261,831 exact duplicate rows (26.18%), which were dropped during cleaning.
+2. Raw 'olist_order_reviews_dataset.csv' had 814 duplicate 'review_id' values before cleaning; the most recent record per key was kept.
+3. After merging, 'order_delivered_customer_date' has the most missing values (2.18% of rows) — likely orders without a matching review, delivery date, or payment record, not a data-quality error.
+4. Removed 198 exact duplicate rows after merging.
+5. 7.47% of 'price' values were statistical outliers and were capped rather than removed, since they likely represent genuine premium products/orders.
+6. 10.76% of 'freight_value' values were statistical outliers and were capped rather than removed, since they likely represent genuine premium products/orders.
+7. 8.17% of 'total_payment_value' values were statistical outliers and were capped rather than removed, since they likely represent genuine premium products/orders.
+8. Average review score across all orders is 4.03 out of 5.
+9. Average delivery time is 12.0 days.
+10. 6.4% of delivered orders arrived later than the estimated delivery date.
+11. 'delivery_days' has the strongest correlation with review_score (-0.30), suggesting it's a key driver of customer satisfaction.
+12. Orders placed on Wednesday have the highest average review score (4.07), while Friday has the lowest (3.98).
+13. 'bed_bath_table' is the highest-volume product category, with 11,160 order items.
+14. We are 95% confident the true average review score lies between 4.03 and 4.04.
