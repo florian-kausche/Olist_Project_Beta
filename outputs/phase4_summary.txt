@@ -3,7 +3,7 @@ PHASE 4 — STATISTICAL ANALYSIS & MACHINE LEARNING: BUSINESS INTERPRETATION
 
 1. Late deliveries are STATISTICALLY SIGNIFICANTLY associated with lower review scores (on-time avg 4.15 vs late avg 2.26, p=0.0000). We're 95% confident the true gap is between 1.86 and 1.93 points. Business implication: investing in on-time delivery is likely to directly improve customer satisfaction scores, not just a coincidence.
 
-2. The Random Forest model predicts negative reviews with 83.2% accuracy and an F1 score of 0.42 (F1 balances catching real negative reviews vs. false alarms). The strongest predictor is 'delivery_delay_days' — meaning the business should monitor and act on this factor early to head off dissatisfied customers before they leave a bad review.
+2. The Random Forest model predicts negative reviews with 82.9% accuracy and an F1 score of 0.42 (F1 balances catching real negative reviews vs. false alarms). The strongest predictor is 'delivery_delay_days' — meaning the business should monitor and act on this factor early to head off dissatisfied customers before they leave a bad review.
 
 3. A linear regression predicting delivery time from order value and freight cost explains only 9.0% of the variation (R²=0.09), with an average error of about 5.9 days. Business implication: delivery speed is driven mainly by logistics/geography, not order value — so improving delivery times requires fixing shipping operations, not pricing.
 

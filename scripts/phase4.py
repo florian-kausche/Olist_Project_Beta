@@ -18,7 +18,11 @@ WHAT THIS SCRIPT DOES (in order):
      business" interpretation, saved into outputs/phase4_summary.txt
 
 HOW TO RUN:
-    python scripts/ml.py
+    python scripts/ml.py                    # prints everything to the terminal
+    streamlit run scripts/phase4.py         # same run, plus a browser dashboard
+  Both run the identical pipeline. In terminal mode there's no Streamlit
+  runtime, so the st.* dashboard calls are silently skipped — you get the
+  same results via the print() statements below, with no warning spam.
 
 REQUIRES (install once):
     pip install scikit-learn scipy
@@ -38,6 +42,55 @@ import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
 from pathlib import Path
+import streamlit.runtime as st_runtime
+
+# ------------------------------------------------------------------------
+# STEP 0a: DUAL-MODE SUPPORT
+# ------------------------------------------------------------------------
+# This script already prints every result via plain print() (see below), so
+# it's fully usable with `python scripts/phase4.py` as the docstring says.
+# The st.* calls layered alongside those prints are for the optional
+# `streamlit run scripts/phase4.py` dashboard view. Problem: outside of
+# `streamlit run` there's no ScriptRunContext, so every one of those st.*
+# calls prints a "missing ScriptRunContext" warning even though it's
+# otherwise harmless. Fix: when there's no Streamlit runtime, swap `st` for
+# a silent no-op stand-in — the print() statements already give you the
+# full terminal report, so the st.* calls just need to disappear quietly.
+RUNNING_IN_STREAMLIT = st_runtime.exists()
+
+
+class _NullWidget:
+    """Absorbs any attribute/method access and any further chaining (e.g.
+    col.metric(...)) without doing anything or raising."""
+
+    def __getattr__(self, name):
+        def _noop(*args, **kwargs):
+            return None
+        return _noop
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class NullUI:
+    """Drop-in stand-in for streamlit when there's no runtime. Every method
+    call (st.header, st.write, st.columns, st.pyplot, etc.) becomes a no-op
+    instead of emitting 'missing ScriptRunContext' warnings."""
+
+    def __getattr__(self, name):
+        def _noop(*args, **kwargs):
+            return None
+        return _noop
+
+    def columns(self, n):
+        return [_NullWidget() for _ in range(n)]
+
+
+if not RUNNING_IN_STREAMLIT:
+    st = NullUI()
 
 # Charts
 import matplotlib

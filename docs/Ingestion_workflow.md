@@ -90,7 +90,7 @@ python scripts\phase3.py
 Inspect missing data from the raw CSV source files:
 
 ```powershell
-python -c "import pandas as pd; df = pd.read_csv('data/raw/olist_orders_dataset.csv'); print(df.isna().sum().sort_values(ascending=False))"
+python -c "import pandas as pd; df = pd.read_csv('data/raw/olist_order_reviews_dataset.csv'); print(df.isna().sum().sort_values(ascending=False))"
 ```
 
 Check duplicates in a raw CSV file:

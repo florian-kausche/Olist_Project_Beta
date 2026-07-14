@@ -12,8 +12,12 @@ WHAT THIS SCRIPT DOES:
 
 HOW TO RUN:
     pip install streamlit plotly
-    streamlit run scripts/phase3.py
-  This opens automatically in your browser at http://localhost:8501
+    streamlit run scripts/phase3.py     # interactive dashboard in the browser
+    python scripts/phase3.py            # same pipeline, printed to the terminal
+  `streamlit run` opens automatically in your browser at http://localhost:8501.
+  `python scripts/phase3.py` runs the identical pipeline but has no browser/
+  Streamlit runtime, so it prints all tables/metrics as plain text instead
+  (charts are skipped in this mode — a one-line note says so where relevant).
 
 WHERE THE DATA COMES FROM:
     Reads the raw Olist CSVs straight from data/raw/ (no Phase 2 / database
@@ -50,6 +54,156 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.preprocessing import StandardScaler
 from pathlib import Path
+import streamlit.runtime as st_runtime
+
+# ------------------------------------------------------------------------
+# STEP 0a: DUAL-MODE SUPPORT
+# ------------------------------------------------------------------------
+# `streamlit run scripts/phase3.py` -> normal interactive dashboard.
+# `python scripts/phase3.py`        -> no Streamlit runtime exists, so every
+#   st.* call would otherwise be a silent no-op (that's the "missing
+#   ScriptRunContext" warning you see). Instead, when there's no runtime we
+#   swap `st` for a tiny shim that prints the same content straight to the
+#   terminal, so the SAME script body below works in both modes untouched.
+RUNNING_IN_STREAMLIT = st_runtime.exists()
+
+
+class _ConsoleColumn:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def metric(self, label, value):
+        print(f"  {label}: {value}")
+
+
+class _ConsoleTab:
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        print("\n" + "=" * 70)
+        print(self.name)
+        print("=" * 70)
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _ConsoleExpander:
+    def __init__(self, label):
+        self.label = label
+
+    def __enter__(self):
+        print(f"\n--- {self.label} ---")
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _ConsoleSpinner:
+    def __init__(self, text):
+        self.text = text
+
+    def __enter__(self):
+        if self.text:
+            print(self.text)
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class ConsoleUI:
+    """Drop-in stand-in for the small slice of the streamlit API this script
+    uses. When there's no Streamlit runtime, `st` is rebound to an instance
+    of this class so `st.title(...)`, `st.dataframe(...)`, `with st.tabs(...)`
+    etc. print plain text/tables to the terminal instead of doing nothing."""
+
+    @staticmethod
+    def set_page_config(**kwargs):
+        pass
+
+    @staticmethod
+    def cache_data(func=None, **kwargs):
+        if func is not None:
+            return func
+
+        def decorator(f):
+            return f
+
+        return decorator
+
+    @staticmethod
+    def spinner(text=""):
+        return _ConsoleSpinner(text)
+
+    @staticmethod
+    def title(text):
+        print("\n" + text)
+        print("#" * len(text))
+
+    @staticmethod
+    def caption(text):
+        print(f"({text})")
+
+    @staticmethod
+    def columns(n):
+        return [_ConsoleColumn() for _ in range(n)]
+
+    @staticmethod
+    def metric(label, value):
+        print(f"{label}: {value}")
+
+    @staticmethod
+    def markdown(text):
+        print(text)
+
+    @staticmethod
+    def tabs(names):
+        return [_ConsoleTab(name) for name in names]
+
+    @staticmethod
+    def subheader(text):
+        print("\n" + text)
+        print("-" * len(text))
+
+    @staticmethod
+    def dataframe(data, **kwargs):
+        try:
+            print(data.to_string())
+        except AttributeError:
+            print(data)
+
+    @staticmethod
+    def expander(label, **kwargs):
+        return _ConsoleExpander(label)
+
+    @staticmethod
+    def info(text):
+        print(f"[INFO] {text}")
+
+    @staticmethod
+    def error(text):
+        print(f"[ERROR] {text}")
+
+    @staticmethod
+    def stop():
+        raise SystemExit(0)
+
+    @staticmethod
+    def plotly_chart(fig, **kwargs):
+        print("[chart not shown in terminal mode — run "
+              "`streamlit run scripts/phase3.py` to view it in the browser]")
+
+
+if not RUNNING_IN_STREAMLIT:
+    st = ConsoleUI()
+
 
 # ------------------------------------------------------------------------
 # STEP 0b: PAGE CONFIG — must be the FIRST streamlit command in the script
