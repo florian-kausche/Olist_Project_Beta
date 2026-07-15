@@ -19,8 +19,15 @@ WHY STREAMLIT (a Python dashboard library) instead of Tableau/Power BI:
 
 HOW TO RUN:
     pip install streamlit plotly
-    streamlit run scripts/dashboard.py
+    streamlit run scripts/phase5.py
   This opens automatically in your browser at http://localhost:8501
+
+  You can also run it as a plain script:
+    python scripts/phase5.py
+  This skips the browser dashboard and instead prints the same headline
+  KPIs (orders, revenue, avg review, avg delivery, late rate) plus top
+  states/categories/review-score breakdown straight to the terminal —
+  useful for a quick check without opening a browser tab.
 
 DESIGN PRINCIPLES APPLIED (mapped to what Phase 5 asks for):
   - Visualisation principles / perception: uses pre-attentive attributes
@@ -47,12 +54,120 @@ DESIGN PRINCIPLES APPLIED (mapped to what Phase 5 asks for):
 # pandas    -> data handling
 # sqlalchemy -> reads the analysis_table your Phase 3 script built
 # ------------------------------------------------------------------------
+import sys
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from sqlalchemy import create_engine
 from pathlib import Path
+
+# ------------------------------------------------------------------------
+# STEP 0a: DETECT RUN MODE
+# ------------------------------------------------------------------------
+# `streamlit run scripts/phase5.py`  -> full interactive dashboard (browser)
+# `python scripts/phase5.py`         -> just print a text summary here in
+#                                        the terminal instead (see below).
+# get_script_run_ctx() returns None when there is no real Streamlit app
+# running the script, which is exactly the case for a plain `python` call.
+# ------------------------------------------------------------------------
+try:
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+    try:
+        # suppress_warning=True: we're deliberately calling this outside a
+        # real Streamlit run, so the "missing ScriptRunContext!" warning
+        # streamlit would otherwise log is expected noise, not a real issue.
+        IS_STREAMLIT_RUNTIME = get_script_run_ctx(suppress_warning=True) is not None
+    except TypeError:
+        # Older Streamlit versions don't accept suppress_warning.
+        IS_STREAMLIT_RUNTIME = get_script_run_ctx() is not None
+except Exception:
+    IS_STREAMLIT_RUNTIME = False
+
+# ------------------------------------------------------------------------
+# STEP 0c: PROJECT PATHS — matches phase3.py / phase4.py
+# ------------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = PROJECT_ROOT / "db" / "olist.db"
+
+
+# ==========================================================================
+# TERMINAL MODE
+# ==========================================================================
+# If you run this file directly with `python scripts/phase5.py`, none of
+# the st.* dashboard commands below actually render anywhere useful (there
+# is no browser tab driving them) — so instead we load the same data and
+# print a plain-text summary of the headline KPIs and top breakdowns right
+# here in the terminal, then exit before touching any Streamlit command.
+# ==========================================================================
+def print_terminal_summary():
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+    df = pd.read_sql_table("analysis_table", con=engine)
+
+    for col in ["order_purchase_timestamp", "order_delivered_customer_date"]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    print("=" * 70)
+    print("OLIST E-COMMERCE PERFORMANCE DASHBOARD — TERMINAL SUMMARY")
+    print("=" * 70)
+    print("(Run 'streamlit run scripts/phase5.py' instead for the full")
+    print(" interactive dashboard with filters and charts in your browser.)")
+    print("-" * 70)
+
+    if df.empty:
+        print("analysis_table is empty. Run scripts/phase3.py first to build it.")
+        print("=" * 70)
+        return
+
+    total_orders = df["order_id"].nunique() if "order_id" in df.columns else len(df)
+    total_revenue = (
+        df["item_total_value"].sum() if "item_total_value" in df.columns else df["price"].sum()
+    )
+    avg_review = df["review_score"].mean() if "review_score" in df.columns else None
+    avg_delivery = df["delivery_days"].mean() if "delivery_days" in df.columns else None
+    late_rate = df["was_late"].mean() if "was_late" in df.columns else None
+
+    print(f"Total Orders........: {total_orders:,}")
+    print(f"Total Revenue (R$)..: {total_revenue:,.2f}")
+    print(f"Avg Review Score....: {avg_review:.2f} / 5" if avg_review is not None else "Avg Review Score....: N/A")
+    print(f"Avg Delivery Time...: {avg_delivery:.1f} days" if avg_delivery is not None else "Avg Delivery Time...: N/A")
+    print(f"Late Delivery Rate..: {late_rate:.1%}" if late_rate is not None else "Late Delivery Rate..: N/A")
+
+    if "customer_state" in df.columns:
+        print("-" * 70)
+        print("Top 10 States by Order Count:")
+        print(df["customer_state"].value_counts().head(10).to_string())
+
+    if "product_category_name" in df.columns and "item_total_value" in df.columns:
+        print("-" * 70)
+        print("Top 10 Product Categories by Revenue (R$):")
+        top_cat = (
+            df.groupby("product_category_name")["item_total_value"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(10)
+        )
+        print(top_cat.round(2).to_string())
+
+    if "review_score" in df.columns:
+        print("-" * 70)
+        print("Review Score Breakdown (1-5):")
+        print(df["review_score"].value_counts().sort_index().to_string())
+
+    if "was_late" in df.columns:
+        print("-" * 70)
+        print("On-Time vs Late Deliveries:")
+        counts = df["was_late"].map({True: "Late", False: "On-time"}).value_counts()
+        print(counts.to_string())
+
+    print("=" * 70)
+
+
+if not IS_STREAMLIT_RUNTIME:
+    print_terminal_summary()
+    sys.exit(0)
+
 
 # ------------------------------------------------------------------------
 # STEP 0b: PAGE CONFIG — must be the FIRST streamlit command in the script
@@ -62,12 +177,6 @@ st.set_page_config(
     layout="wide",          # use the full browser width, not a narrow column
     initial_sidebar_state="expanded",
 )
-
-# ------------------------------------------------------------------------
-# STEP 0c: PROJECT PATHS — matches phase3.py / phase4.py
-# ------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = PROJECT_ROOT / "db" / "olist.db"
 
 # ------------------------------------------------------------------------
 # ACCESSIBILITY: a fixed, colorblind-safe palette used EVERYWHERE.

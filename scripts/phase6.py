@@ -22,9 +22,17 @@ WHAT PHASE 6 REQUIRES (mapped to sections below):
 
 HOW TO RUN:
     .\.venv\Scripts\python.exe -m streamlit run scripts/phase6.py
+  This opens the full narrative page in your browser at http://localhost:8501
+
+  You can also run it as a plain script:
+    .\.venv\Scripts\python.exe scripts/phase6.py
+  This skips the browser page and instead prints a text version of the
+  story (KPIs, growth, geography, categories, the delay/review insight,
+  live model results, and the final recommendations) to the terminal.
 ================================================================================
 """
 
+import sys
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -43,9 +51,24 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 # ------------------------------------------------------------------------
-# PAGE CONFIG — must be the first Streamlit command
+# DETECT RUN MODE
 # ------------------------------------------------------------------------
-st.set_page_config(page_title="Olist Data Story | Phase 6", page_icon="📖", layout="wide")
+# `streamlit run scripts/phase6.py`  -> full narrative page (browser)
+# `python scripts/phase6.py`         -> print a text version of the story
+#                                        to the terminal instead (see below).
+# ------------------------------------------------------------------------
+try:
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+    try:
+        # suppress_warning=True: we're deliberately calling this outside a
+        # real Streamlit run, so the "missing ScriptRunContext!" warning
+        # streamlit would otherwise log is expected noise, not a real issue.
+        IS_STREAMLIT_RUNTIME = get_script_run_ctx(suppress_warning=True) is not None
+    except TypeError:
+        # Older Streamlit versions don't accept suppress_warning.
+        IS_STREAMLIT_RUNTIME = get_script_run_ctx() is not None
+except Exception:
+    IS_STREAMLIT_RUNTIME = False
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "db" / "olist.db"
@@ -53,6 +76,279 @@ DB_PATH = PROJECT_ROOT / "db" / "olist.db"
 COLOR_GOOD = "#0072B2"
 COLOR_BAD = "#D55E00"
 COLOR_NEUTRAL = "#999999"
+
+
+# ==========================================================================
+# MODEL LOGIC — plain functions (no Streamlit caching) so the exact same
+# code can be called from BOTH the browser dashboard and the terminal
+# summary below, without duplicating the modelling logic in two places.
+# The dashboard wraps these in st.cache_data further down (see Section 6).
+# ==========================================================================
+def _classify_negative_reviews(df: pd.DataFrame):
+    """Mirrors phase4.py's prepare_classification_data() + run_classification()."""
+    work = df.dropna(subset=["review_score"]).copy()
+    work["is_negative_review"] = (work["review_score"] <= 2).astype(int)
+
+    feature_cols = [
+        "price", "freight_value", "delivery_days", "delivery_delay_days",
+        "item_total_value", "freight_ratio", "payment_installments_max",
+    ]
+    feature_cols = [c for c in feature_cols if c in work.columns]
+    if not feature_cols:
+        return None
+
+    model_df = work.dropna(subset=feature_cols)
+    X = model_df[feature_cols]
+    y = model_df["is_negative_review"]
+
+    if y.nunique() < 2 or len(model_df) < 50:
+        return None  # not enough data/class variety to train meaningfully
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    log_reg = LogisticRegression(class_weight="balanced", max_iter=1000, random_state=42)
+    log_reg.fit(X_train_scaled, y_train)
+    y_pred_lr = log_reg.predict(X_test_scaled)
+
+    rf = RandomForestClassifier(
+        n_estimators=200, max_depth=8, class_weight="balanced",
+        random_state=42, n_jobs=-1,
+    )
+    rf.fit(X_train, y_train)
+    y_pred_rf = rf.predict(X_test)
+
+    def metrics_for(y_true, y_pred):
+        return {
+            "accuracy": accuracy_score(y_true, y_pred),
+            "precision": precision_score(y_true, y_pred, zero_division=0),
+            "recall": recall_score(y_true, y_pred, zero_division=0),
+            "f1": f1_score(y_true, y_pred, zero_division=0),
+        }
+
+    results = {
+        "Logistic Regression": metrics_for(y_test, y_pred_lr),
+        "Random Forest": metrics_for(y_test, y_pred_rf),
+    }
+    best_model = max(results, key=lambda k: results[k]["f1"])
+
+    importance = pd.Series(rf.feature_importances_, index=feature_cols).sort_values(ascending=False)
+    top_driver = importance.index[0]
+    negative_rate = y.mean()
+
+    return {
+        "results": results,
+        "best_model": best_model,
+        "top_driver": top_driver,
+        "n_rows": len(model_df),
+        "negative_rate": negative_rate,
+        "importance": importance,
+    }
+
+
+def _cluster_orders(df: pd.DataFrame):
+    """Mirrors phase4.py's run_clustering() with K=4."""
+    cluster_cols = ["price", "freight_value", "delivery_days", "review_score"]
+    cluster_cols = [c for c in cluster_cols if c in df.columns]
+    model_df = df.dropna(subset=cluster_cols).copy()
+
+    if len(model_df) < 50:
+        return None
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(model_df[cluster_cols])
+
+    K = 4
+    kmeans = KMeans(n_clusters=K, random_state=42, n_init=10)
+    model_df["cluster"] = kmeans.fit_predict(X_scaled)
+    sil_score = silhouette_score(X_scaled, model_df["cluster"])
+
+    cluster_profile = model_df.groupby("cluster")[cluster_cols].mean().round(2)
+    cluster_profile["n_orders"] = model_df.groupby("cluster").size()
+
+    happiest = unhappiest = None
+    if "review_score" in cluster_profile.columns:
+        happiest = cluster_profile["review_score"].idxmax()
+        unhappiest = cluster_profile["review_score"].idxmin()
+
+    return {
+        "K": K,
+        "silhouette": sil_score,
+        "profile": cluster_profile,
+        "happiest": happiest,
+        "unhappiest": unhappiest,
+    }
+
+
+# ==========================================================================
+# TERMINAL MODE
+# ==========================================================================
+# If you run this file directly with `python scripts/phase6.py`, none of
+# the st.* narrative commands below render anywhere useful — so instead we
+# load the same data, recompute the same live model results, and print a
+# plain-text version of the story (KPIs, growth, geography, categories,
+# the delay/review insight, model results, and the final recommendations)
+# right here in the terminal, then exit before touching any Streamlit call.
+# ==========================================================================
+def print_terminal_summary():
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+    df = pd.read_sql_table("analysis_table", con=engine)
+    for col in ["order_purchase_timestamp", "order_delivered_customer_date"]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    print("=" * 70)
+    print("THE OLIST DATA STORY — TERMINAL SUMMARY (Phase 6)")
+    print("AfiLearn Commerce Analytics Office")
+    print("=" * 70)
+    print("(Run 'streamlit run scripts/phase6.py' instead for the full")
+    print(" narrative page with charts, 'so what' framing, and details.)")
+    print("-" * 70)
+
+    if df.empty:
+        print("analysis_table is empty. Run scripts/phase3.py first to build it.")
+        print("=" * 70)
+        return
+
+    revenue_col = "item_total_value" if "item_total_value" in df.columns else "price"
+
+    # --- Executive KPIs -------------------------------------------------
+    total_orders = df["order_id"].nunique() if "order_id" in df.columns else len(df)
+    total_revenue = df[revenue_col].sum() if revenue_col in df.columns else None
+    avg_review = df["review_score"].mean() if "review_score" in df.columns else None
+    avg_delivery = df["delivery_days"].mean() if "delivery_days" in df.columns else None
+    late_rate = df["was_late"].mean() if "was_late" in df.columns else None
+
+    print(f"Total Orders........: {total_orders:,}")
+    if total_revenue is not None:
+        print(f"Total Revenue (R$)..: {total_revenue:,.2f}")
+    if avg_review is not None:
+        print(f"Avg Review Score....: {avg_review:.2f} / 5")
+    if avg_delivery is not None:
+        print(f"Avg Delivery Time...: {avg_delivery:.1f} days")
+    if late_rate is not None:
+        print(f"Late Delivery Rate..: {late_rate:.1%}")
+
+    # --- Section 2: Growth ------------------------------------------------
+    if "order_purchase_timestamp" in df.columns and revenue_col in df.columns:
+        monthly = (
+            df.dropna(subset=["order_purchase_timestamp"])
+            .set_index("order_purchase_timestamp")
+            .resample("ME")
+            .agg(revenue=(revenue_col, "sum"), orders=("order_id", "nunique"))
+            .reset_index()
+        )
+        if len(monthly) > 1 and monthly.iloc[-1]["orders"] < monthly["orders"].median() * 0.1:
+            monthly = monthly.iloc[:-1]
+        # Also trim a near-empty FIRST month (e.g. a single test order before
+        # the real launch date) — pct_change() dividing by a near-zero base
+        # produces a meaningless "inf%" that would otherwise dominate the average.
+        if len(monthly) > 1 and monthly.iloc[0]["orders"] < monthly["orders"].median() * 0.1:
+            monthly = monthly.iloc[1:]
+        monthly["revenue_growth_pct"] = monthly["revenue"].pct_change() * 100
+        avg_growth = monthly["revenue_growth_pct"].replace([np.inf, -np.inf], np.nan).mean()
+        print("-" * 70)
+        print("2. GROWTH OVER TIME")
+        if pd.notna(avg_growth):
+            print(f"   Avg month-over-month revenue growth: {avg_growth:.1f}%")
+        else:
+            print("   Avg month-over-month revenue growth: not enough clean months to compute.")
+
+    # --- Section 3: Geography ----------------------------------------------
+    if "customer_state" in df.columns:
+        state_counts = df["customer_state"].value_counts().head(10)
+        print("-" * 70)
+        print("3. WHERE THE CUSTOMERS ARE (top state: %s)" % state_counts.index[0])
+        print(state_counts.to_string())
+
+    # --- Section 4: Category revenue ---------------------------------------
+    if "product_category_name" in df.columns and revenue_col in df.columns:
+        cat_series = (
+            df.groupby("product_category_name")[revenue_col]
+            .sum().sort_values(ascending=False).head(10)
+        )
+        print("-" * 70)
+        print("4. TOP 10 CATEGORIES BY REVENUE (R$)")
+        print(cat_series.round(2).to_string())
+
+    # --- Section 5: Delay vs review ----------------------------------------
+    if {"delivery_delay_days", "review_score"}.issubset(df.columns):
+        delay_df = df.dropna(subset=["delivery_delay_days", "review_score"]).copy()
+        bins = [-9999, 0, 3, 7, 14, 9999]
+        labels = ["Early/On-time", "1-3 days late", "4-7 days late", "8-14 days late", "15+ days late"]
+        delay_df["delay_bucket"] = pd.cut(delay_df["delivery_delay_days"], bins=bins, labels=labels)
+        bucket_summary = delay_df.groupby("delay_bucket", observed=True)["review_score"].mean()
+        corr = delay_df["delivery_delay_days"].corr(delay_df["review_score"])
+        print("-" * 70)
+        print("5. CENTRAL INSIGHT: LATE DELIVERIES ARE COSTING REVIEWS")
+        print(bucket_summary.round(2).to_string())
+        print(f"   Correlation (delay vs review score): {corr:.3f}")
+
+    # --- Section 6: Live model results --------------------------------------
+    print("-" * 70)
+    print("6. WHAT THE MODELS TOLD US")
+    clf_results = _classify_negative_reviews(df)
+    cluster_results = _cluster_orders(df)
+
+    if clf_results:
+        metrics_table = pd.DataFrame(clf_results["results"]).T[
+            ["accuracy", "precision", "recall", "f1"]
+        ].round(3)
+        print(metrics_table.to_string())
+        print(
+            f"   Best model: {clf_results['best_model']} | "
+            f"top driver of negative reviews: {clf_results['top_driver']} | "
+            f"trained on {clf_results['n_rows']:,} orders "
+            f"({clf_results['negative_rate']:.1%} negative reviews)"
+        )
+    else:
+        print("   Not enough data/columns to train the classification model.")
+
+    if cluster_results:
+        print(f"   K-Means (K={cluster_results['K']}) silhouette score: {cluster_results['silhouette']:.3f}")
+        print(cluster_results["profile"].to_string())
+        if cluster_results["happiest"] is not None:
+            print(
+                f"   Happiest segment: {cluster_results['happiest']} | "
+                f"Unhappiest segment: {cluster_results['unhappiest']}"
+            )
+    else:
+        print("   Not enough data/columns to run the clustering model.")
+
+    # --- Section 7: Final recommendations -----------------------------------
+    print("-" * 70)
+    print("7. FINAL RECOMMENDATIONS")
+    print("   1. Prioritize delivery-time reduction for the top revenue categories.")
+    print("   2. Focus operational improvements on the top customer states first.")
+    print("   3. Set an internal SLA alert at the 3-day-late threshold.")
+    print("   4. Use the low-review-score prediction model to flag at-risk orders.")
+    print("   5. Use the customer/seller segments to tailor retention offers.")
+    print("=" * 70)
+
+
+# ------------------------------------------------------------------------
+# IMPORTANT (Windows): the classification model below uses n_jobs=-1, which
+# spawns separate worker processes. On Windows, those workers re-import
+# this file. Without this `__name__ == "__main__"` guard, each worker would
+# re-run print_terminal_summary() itself -> which spawns MORE workers ->
+# and the terminal appears to hang forever. The guard ensures this
+# top-level trigger code only runs in the original process, never in the
+# re-imported worker copies.
+# ------------------------------------------------------------------------
+if __name__ == "__main__" and not IS_STREAMLIT_RUNTIME:
+    print_terminal_summary()
+    sys.exit(0)
+
+
+# ------------------------------------------------------------------------
+# PAGE CONFIG — must be the first Streamlit command
+# ------------------------------------------------------------------------
+st.set_page_config(page_title="Olist Data Story | Phase 6", page_icon="📖", layout="wide")
 
 
 # ==========================================================================
@@ -191,6 +487,13 @@ if "order_purchase_timestamp" in df.columns and revenue_col in df.columns:
     if len(monthly) > 1 and monthly.iloc[-1]["orders"] < monthly["orders"].median() * 0.1:
         monthly = monthly.iloc[:-1]
 
+    # Also trim a near-empty FIRST month (e.g. a single test order before
+    # the real launch date) — pct_change() dividing by a near-zero base
+    # produces a meaningless "inf%" that would otherwise dominate the average
+    # and break the "So what" text below.
+    if len(monthly) > 1 and monthly.iloc[0]["orders"] < monthly["orders"].median() * 0.1:
+        monthly = monthly.iloc[1:]
+
     monthly["revenue_growth_pct"] = monthly["revenue"].pct_change() * 100
 
     col_a, col_b = st.columns(2)
@@ -219,11 +522,12 @@ if "order_purchase_timestamp" in df.columns and revenue_col in df.columns:
         fig_pct.update_layout(margin=dict(t=40, b=20), showlegend=False)
         st.plotly_chart(fig_pct, width="stretch")
 
-    avg_growth = monthly["revenue_growth_pct"].mean()
+    avg_growth = monthly["revenue_growth_pct"].replace([np.inf, -np.inf], np.nan).mean()
+    growth_text = f"{avg_growth:.1f}% month-over-month" if pd.notna(avg_growth) else "an unstable"
     st.markdown(
         f"""
         **So what:** revenue and order volume grew together through the dataset's core period,
-        averaging roughly **{avg_growth:.1f}% month-over-month** growth, before flattening in the
+        averaging roughly **{growth_text}** growth, before flattening in the
         later months. Growth being volatile rather than steadily accelerating suggests the business
         is shifting from an acquisition-driven phase to one where **retention** (and therefore
         delivery/review experience — see Section 5) becomes the more important growth lever.
@@ -362,109 +666,14 @@ st.divider()
 # exact same feature set, target definition, and model configuration as
 # scripts/phase4.py. No hardcoded numbers: every value below is real,
 # recalculated each time this page runs against your actual data.
+#
+# The actual modelling logic lives in _classify_negative_reviews() and
+# _cluster_orders() near the top of this file (shared with terminal mode);
+# here we just wrap them in Streamlit's cache so repeat interactions
+# (e.g. changing nothing, just re-rendering) don't retrain unnecessarily.
 # ---------------------------------------------------------------------------
-@st.cache_data
-def run_classification_live(df: pd.DataFrame):
-    """Mirrors phase4.py's prepare_classification_data() + run_classification()."""
-    work = df.dropna(subset=["review_score"]).copy()
-    work["is_negative_review"] = (work["review_score"] <= 2).astype(int)
-
-    feature_cols = [
-        "price", "freight_value", "delivery_days", "delivery_delay_days",
-        "item_total_value", "freight_ratio", "payment_installments_max",
-    ]
-    feature_cols = [c for c in feature_cols if c in work.columns]
-    if not feature_cols:
-        return None
-
-    model_df = work.dropna(subset=feature_cols)
-    X = model_df[feature_cols]
-    y = model_df["is_negative_review"]
-
-    if y.nunique() < 2 or len(model_df) < 50:
-        return None  # not enough data/class variety to train meaningfully
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-
-    log_reg = LogisticRegression(class_weight="balanced", max_iter=1000, random_state=42)
-    log_reg.fit(X_train_scaled, y_train)
-    y_pred_lr = log_reg.predict(X_test_scaled)
-
-    rf = RandomForestClassifier(
-        n_estimators=200, max_depth=8, class_weight="balanced",
-        random_state=42, n_jobs=-1,
-    )
-    rf.fit(X_train, y_train)
-    y_pred_rf = rf.predict(X_test)
-
-    def metrics_for(y_true, y_pred):
-        return {
-            "accuracy": accuracy_score(y_true, y_pred),
-            "precision": precision_score(y_true, y_pred, zero_division=0),
-            "recall": recall_score(y_true, y_pred, zero_division=0),
-            "f1": f1_score(y_true, y_pred, zero_division=0),
-        }
-
-    results = {
-        "Logistic Regression": metrics_for(y_test, y_pred_lr),
-        "Random Forest": metrics_for(y_test, y_pred_rf),
-    }
-    best_model = max(results, key=lambda k: results[k]["f1"])
-
-    importance = pd.Series(rf.feature_importances_, index=feature_cols).sort_values(ascending=False)
-    top_driver = importance.index[0]
-    negative_rate = y.mean()
-
-    return {
-        "results": results,
-        "best_model": best_model,
-        "top_driver": top_driver,
-        "n_rows": len(model_df),
-        "negative_rate": negative_rate,
-        "importance": importance,
-    }
-
-
-@st.cache_data
-def run_clustering_live(df: pd.DataFrame):
-    """Mirrors phase4.py's run_clustering() with K=4."""
-    cluster_cols = ["price", "freight_value", "delivery_days", "review_score"]
-    cluster_cols = [c for c in cluster_cols if c in df.columns]
-    model_df = df.dropna(subset=cluster_cols).copy()
-
-    if len(model_df) < 50:
-        return None
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(model_df[cluster_cols])
-
-    K = 4
-    kmeans = KMeans(n_clusters=K, random_state=42, n_init=10)
-    model_df["cluster"] = kmeans.fit_predict(X_scaled)
-    sil_score = silhouette_score(X_scaled, model_df["cluster"])
-
-    cluster_profile = model_df.groupby("cluster")[cluster_cols].mean().round(2)
-    cluster_profile["n_orders"] = model_df.groupby("cluster").size()
-
-    happiest = unhappiest = None
-    if "review_score" in cluster_profile.columns:
-        happiest = cluster_profile["review_score"].idxmax()
-        unhappiest = cluster_profile["review_score"].idxmin()
-
-    return {
-        "K": K,
-        "silhouette": sil_score,
-        "profile": cluster_profile,
-        "happiest": happiest,
-        "unhappiest": unhappiest,
-    }
-
+run_classification_live = st.cache_data(_classify_negative_reviews)
+run_clustering_live = st.cache_data(_cluster_orders)
 
 st.header("6. What the Models Told Us")
 st.markdown(
