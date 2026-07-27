@@ -166,7 +166,17 @@ def _cluster_orders(df: pd.DataFrame):
     K = 4
     kmeans = KMeans(n_clusters=K, random_state=42, n_init=10)
     model_df["cluster"] = kmeans.fit_predict(X_scaled)
-    sil_score = silhouette_score(X_scaled, model_df["cluster"])
+
+    # silhouette_score computes a full pairwise distance matrix by default,
+    # which is O(n^2) memory -- fine for a few thousand rows but not for
+    # ~100k+ order-item rows (that's what caused the ArrayMemoryError).
+    # Capping with sample_size gives a statistically solid estimate from a
+    # random subsample instead, at a small fraction of the memory cost.
+    n_rows = X_scaled.shape[0]
+    sample_size = min(n_rows, 5000)
+    sil_score = silhouette_score(
+        X_scaled, model_df["cluster"], sample_size=sample_size, random_state=42
+    )
 
     cluster_profile = model_df.groupby("cluster")[cluster_cols].mean().round(2)
     cluster_profile["n_orders"] = model_df.groupby("cluster").size()

@@ -566,7 +566,7 @@ if df.empty:
 # ==========================================================================
 # STEP 2: TITLE + HEADLINE KPIs
 # ==========================================================================
-st.title("🧼 Olist Phase 3 — Data Cleaning & Exploratory Data Analysis")
+st.title("Olist Phase 3 — Data Cleaning & Exploratory Data Analysis")
 st.caption(
     "Every step below runs live against the raw CSVs in data/raw/ — cleaning, "
     "missing data, duplicates, outliers, transformation, scaling, feature "
@@ -594,8 +594,8 @@ tab_clean, tab_outliers, tab_transform, tab_features, tab_stats, tab_dist, tab_c
 with tab_clean:
     st.subheader("Raw File Audit (before cleaning)")
     st.caption(
-        "CHART CHOICE: a table, not a chart — this is reference data a reader "
-        "scans for specific numbers, not a pattern to spot visually."
+        "Table for Reference"
+     
     )
     st.dataframe(results["raw_audit_df"], width='stretch')
 

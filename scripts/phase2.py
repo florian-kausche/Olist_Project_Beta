@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 from pathlib import Path
 
-# Run this script with: python scripts/import.py
+# Run this script with: python scripts/phase2.py
 # It loads every CSV in data/raw/ into the local SQLite database.
 RAW_DIR = Path("data/raw")
 DB_PATH = Path("db/olist.db")
