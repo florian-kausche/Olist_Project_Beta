@@ -4,6 +4,7 @@ from pathlib import Path
 
 # Connect to the SQLite database created during ingestion (stdlib sqlite3 —
 # no external DB driver required).
+#
 DB_PATH = Path("db/olist.db")
 DB_PATH.parent.mkdir(exist_ok=True, parents=True)
 conn = sqlite3.connect(DB_PATH)
